@@ -7,6 +7,7 @@ using AIVoiceInteractor.Authorization;
 using AIVoiceInteractor.Authorization.Users;
 using AIVoiceInteractor.Models.TokenAuth;
 using AIVoiceInteractor.MultiTenancy;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
@@ -115,6 +116,33 @@ namespace AIVoiceInteractor.Controllers
         private string GetEncryptedAccessToken(string accessToken)
         {
             return SimpleStringCipher.Instance.Encrypt(accessToken);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ExternalAuthentication([FromBody] ExternalLogInModel model)
+        {
+            var verificationResult = await _logInManager.VerifyUserCredentials(model.UserName, model.EmailAddress, model.Password);
+            if (verificationResult.Item1 == null)
+            {
+                var failedResponse = new
+                {
+                    StatusCode = StatusCodes.Status404NotFound,
+                    Message = verificationResult.Item2,
+                };
+
+                return StatusCode(StatusCodes.Status404NotFound, failedResponse);
+            }
+            else
+            {
+                var successResponse = new
+                {
+                    StatusCode = StatusCodes.Status200OK,
+                    Message = verificationResult.Item2,
+                    UserId = verificationResult.Item1.Id,
+                    Email = verificationResult.Item1.EmailAddress
+                };
+                return StatusCode(StatusCodes.Status200OK, successResponse);
+            }
         }
     }
 }
